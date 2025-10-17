@@ -338,15 +338,7 @@ export default function CyberAssessmentTool() {
       if (recentCorrect >= 2 && currentQuestion < 6) {
         const domain = questionBank[selectedDomain];
         const nextLevel = userLevel === 'beginner' ? 'intermediate' : 'advanced';
-        const nextQuestions = domain[nextLevel]?.slice(0, 1) || [];
-        
-        // Add advanced scenario if performing well
-        if (nextLevel === 'advanced') {
-          const advancedScenario = getRandomScenario(selectedDomain, 'advanced');
-          if (advancedScenario) {
-            nextQuestions.push(advancedScenario);
-          }
-        }
+        const nextQuestions = domain[nextLevel]?.slice(0, 2) || [];
         
         if (nextQuestions.length > 0) {
           setQuestions([...questions, ...nextQuestions]);

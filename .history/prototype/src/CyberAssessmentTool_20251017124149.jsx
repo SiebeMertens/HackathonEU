@@ -275,18 +275,9 @@ export default function CyberAssessmentTool() {
 
   const startAssessment = (domainId) => {
     const domain = questionBank[domainId];
-    
-    // Mix regular questions with scenario questions
-    const beginnerQuestions = domain.beginner.slice(0, 2);
-    const intermediateQuestion = domain.intermediate.slice(0, 1);
-    
-    // Add a scenario question for intermediate level
-    const scenarioQuestion = getRandomScenario(domainId, 'intermediate');
-    
     const initialQuestions = [
-      ...beginnerQuestions,
-      ...intermediateQuestion,
-      ...(scenarioQuestion ? [scenarioQuestion] : [])
+      ...domain.beginner.slice(0, 2),
+      ...domain.intermediate.slice(0, 1)
     ];
     
     setSelectedDomain(domainId);
@@ -338,15 +329,7 @@ export default function CyberAssessmentTool() {
       if (recentCorrect >= 2 && currentQuestion < 6) {
         const domain = questionBank[selectedDomain];
         const nextLevel = userLevel === 'beginner' ? 'intermediate' : 'advanced';
-        const nextQuestions = domain[nextLevel]?.slice(0, 1) || [];
-        
-        // Add advanced scenario if performing well
-        if (nextLevel === 'advanced') {
-          const advancedScenario = getRandomScenario(selectedDomain, 'advanced');
-          if (advancedScenario) {
-            nextQuestions.push(advancedScenario);
-          }
-        }
+        const nextQuestions = domain[nextLevel]?.slice(0, 2) || [];
         
         if (nextQuestions.length > 0) {
           setQuestions([...questions, ...nextQuestions]);
@@ -570,11 +553,10 @@ export default function CyberAssessmentTool() {
   if (screen === 'assessment') {
     const question = questions[currentQuestion];
     const progress = ((currentQuestion + 1) / questions.length) * 100;
-    const isScenario = question.type === 'scenario';
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
-        <div className="max-w-4xl mx-auto py-8">
+        <div className="max-w-3xl mx-auto py-8">
           {/* Progress */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-2">
@@ -589,79 +571,67 @@ export default function CyberAssessmentTool() {
             </div>
           </div>
 
-          {/* Question Card - Scenario or Regular */}
+          {/* Question Card */}
           <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 mb-6">
-            {isScenario ? (
-              <ScenarioQuestion
-                scenario={question}
-                selectedAnswer={selectedAnswer}
-                onAnswerSelect={handleAnswer}
-                showExplanation={showFeedback}
-                isCorrect={selectedAnswer === question.correct}
+            <h2 className="text-2xl font-bold text-white mb-6">{question.question}</h2>
+            
+            {/* Confidence Level Selector */}
+            <div className="mb-8 p-4 bg-slate-700 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold text-slate-200">{t.confidenceLevel || 'How confident are you?'}</label>
+                <span className="text-cyan-400 font-bold text-lg">{confidenceLevel}/5</span>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="5"
+                value={confidenceLevel}
+                onChange={(e) => setConfidenceLevel(Number(e.target.value))}
+                disabled={showFeedback}
+                className="w-full h-3 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-cyan-500"
               />
-            ) : (
-              <>
-                <h2 className="text-2xl font-bold text-white mb-6">{question.question}</h2>
+              <div className="flex justify-between text-xs text-slate-400 mt-2">
+                <span>{t.notConfident || 'Not confident'}</span>
+                <span>{t.veryConfident || 'Very confident'}</span>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {question.options.map((option, index) => {
+                const isSelected = selectedAnswer === index;
+                const isCorrect = index === question.correct;
+                const showResult = showFeedback;
                 
-                {/* Confidence Level Selector */}
-                <div className="mb-8 p-4 bg-slate-700 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-semibold text-slate-200">{t.confidenceLevel || 'How confident are you?'}</label>
-                    <span className="text-cyan-400 font-bold text-lg">{confidenceLevel}/5</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="5"
-                    value={confidenceLevel}
-                    onChange={(e) => setConfidenceLevel(Number(e.target.value))}
+                let bgColor = 'bg-slate-700 hover:bg-slate-600';
+                if (showResult) {
+                  if (isSelected && isCorrect) bgColor = 'bg-green-600';
+                  else if (isSelected && !isCorrect) bgColor = 'bg-red-600';
+                  else if (isCorrect) bgColor = 'bg-green-600/50';
+                }
+
+                return (
+                  <button
+                    key={index}
+                    onClick={() => handleAnswer(index)}
                     disabled={showFeedback}
-                    className="w-full h-3 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-                  />
-                  <div className="flex justify-between text-xs text-slate-400 mt-2">
-                    <span>{t.notConfident || 'Not confident'}</span>
-                    <span>{t.veryConfident || 'Very confident'}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  {question.options.map((option, index) => {
-                    const isSelected = selectedAnswer === index;
-                    const isCorrect = index === question.correct;
-                    const showResult = showFeedback;
-                    
-                    let bgColor = 'bg-slate-700 hover:bg-slate-600';
-                    if (showResult) {
-                      if (isSelected && isCorrect) bgColor = 'bg-green-600';
-                      else if (isSelected && !isCorrect) bgColor = 'bg-red-600';
-                      else if (isCorrect) bgColor = 'bg-green-600/50';
-                    }
+                    className={`w-full text-left p-4 rounded-lg ${bgColor} text-white transition flex items-center gap-3`}
+                  >
+                    <span className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900/50 flex items-center justify-center font-bold">
+                      {String.fromCharCode(65 + index)}
+                    </span>
+                    <span className="flex-1">{option}</span>
+                    {showResult && isCorrect && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
+                    {showResult && isSelected && !isCorrect && <XCircle className="w-5 h-5 flex-shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
 
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => handleAnswer(index)}
-                        disabled={showFeedback}
-                        className={`w-full text-left p-4 rounded-lg ${bgColor} text-white transition flex items-center gap-3`}
-                      >
-                        <span className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900/50 flex items-center justify-center font-bold">
-                          {String.fromCharCode(65 + index)}
-                        </span>
-                        <span className="flex-1">{option}</span>
-                        {showResult && isCorrect && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
-                        {showResult && isSelected && !isCorrect && <XCircle className="w-5 h-5 flex-shrink-0" />}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Feedback */}
-                {showFeedback && (
-                  <div className="mt-6 p-4 bg-slate-700 rounded-lg">
-                    <p className="text-slate-200">{question.explanation}</p>
-                  </div>
-                )}
-              </>
+            {/* Feedback */}
+            {showFeedback && (
+              <div className="mt-6 p-4 bg-slate-700 rounded-lg">
+                <p className="text-slate-200">{question.explanation}</p>
+              </div>
             )}
           </div>
 
