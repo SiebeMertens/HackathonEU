@@ -1,0 +1,275 @@
+// Google AI Studio (Gemini) API Service
+// Documentation: https://ai.google.dev/
+
+const GEMINI_API_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent`;
+
+/**
+ * Generate cybersecurity assessment questions using Google's Gemini AI
+ * @param {string} domain - The cybersecurity domain (network-security, secure-coding, incident-response)
+ * @param {string} difficulty - Question difficulty (beginner, intermediate, advanced)
+ * @param {number} count - Number of questions to generate
+ * @param {string} apiKey - Google AI Studio API key
+ * @returns {Promise<Array>} Array of generated questions
+ */
+export async function generateQuestions(domain, difficulty, count = 1, apiKey) {
+  if (!apiKey) {
+    throw new Error('Google AI Studio API key is required');
+  }
+
+  const domainDescriptions = {
+    'network-security': 'network security, firewalls, intrusion detection, DDoS attacks, network protocols',
+    'secure-coding': 'secure software development, OWASP vulnerabilities, SQL injection, XSS, secure authentication',
+    'incident-response': 'cybersecurity incident response, forensics, containment, recovery, threat hunting'
+  };
+
+  const difficultyDescriptions = {
+    'beginner': 'basic foundational concepts suitable for beginners with clear straightforward scenarios',
+    'intermediate': 'moderate complexity requiring practical knowledge and real-world application',
+    'advanced': 'complex scenarios requiring expert-level analysis and decision-making'
+  };
+
+  const prompt = `You are a cybersecurity education expert. Generate ${count} multiple-choice assessment question(s) for ${domainDescriptions[domain]} at ${difficultyDescriptions[difficulty]} level.
+
+REQUIREMENTS:
+- Each question must be realistic and based on real-world scenarios
+- Align with NIST Cybersecurity Framework, ENISA, and ECSO standards
+- Provide 4 answer options (A, B, C, D)
+- Include detailed explanation (150-200 words)
+- Add 2-3 key learning points
+
+FORMAT YOUR RESPONSE AS VALID JSON ARRAY:
+[
+  {
+    "question": "Clear, specific question text",
+    "options": [
+      "Option A - first choice",
+      "Option B - second choice",
+      "Option C - third choice",
+      "Option D - fourth choice"
+    ],
+    "correct": 0,
+    "explanation": "Detailed explanation of why the correct answer is right and why others are wrong. Include technical details and best practices.",
+    "learningPoints": [
+      "Key takeaway 1",
+      "Key takeaway 2",
+      "Key takeaway 3"
+    ],
+    "difficulty": "${difficulty}",
+    "framework": "NIST CSF / ENISA / ECSO reference"
+  }
+]
+
+Generate exactly ${count} question(s). Return ONLY the JSON array, no additional text.`;
+
+  try {
+    const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 2048,
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Gemini API error: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const generatedText = data.candidates[0]?.content?.parts[0]?.text;
+
+    if (!generatedText) {
+      throw new Error('No content generated from Gemini API');
+    }
+
+    // Extract JSON from response (handle markdown code blocks if present)
+    let jsonText = generatedText.trim();
+    if (jsonText.startsWith('```json')) {
+      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    } else if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```\n?/g, '').trim();
+    }
+
+    const questions = JSON.parse(jsonText);
+
+    // Validate and format questions
+    return questions.map((q, index) => ({
+      id: `ai-${domain}-${difficulty}-${Date.now()}-${index}`,
+      question: q.question,
+      options: q.options,
+      correct: q.correct,
+      explanation: q.explanation,
+      learningPoints: q.learningPoints || [],
+      difficulty: difficulty,
+      framework: q.framework || 'AI Generated',
+      aiGenerated: true,
+      generatedAt: new Date().toISOString()
+    }));
+
+  } catch (error) {
+    console.error('Error generating questions with Gemini:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generate a scenario-based question using Gemini AI
+ * @param {string} domain - The cybersecurity domain
+ * @param {string} difficulty - Question difficulty
+ * @param {string} apiKey - Google AI Studio API key
+ * @returns {Promise<Object>} Generated scenario question
+ */
+export async function generateScenarioQuestion(domain, difficulty, apiKey) {
+  if (!apiKey) {
+    throw new Error('Google AI Studio API key is required');
+  }
+
+  const domainContexts = {
+    'network-security': 'network infrastructure, security monitoring, threat detection',
+    'secure-coding': 'software development, code review, vulnerability assessment',
+    'incident-response': 'security incidents, forensics, crisis management'
+  };
+
+  const prompt = `You are a cybersecurity education expert. Create ONE detailed scenario-based assessment question for ${domainContexts[domain]} at ${difficulty} level.
+
+REQUIREMENTS:
+- Create a realistic, story-driven scenario (100-150 words of context)
+- Include technical details (IP addresses, ports, logs, or code snippets as appropriate)
+- Provide 4 detailed answer options
+- Write comprehensive explanation (200-250 words)
+- Include 3-4 key learning points
+- Make it engaging and educational
+
+FORMAT YOUR RESPONSE AS VALID JSON:
+{
+  "title": "Compelling scenario title",
+  "context": "Detailed scenario description with realistic technical details, timelines, and context. Make it feel like a real-world situation.",
+  "diagram": "Optional: ASCII art diagram or visual representation if applicable",
+  "codeSnippet": {
+    "language": "python/javascript/bash",
+    "code": "Code sample if relevant to scenario"
+  },
+  "question": "What is the BEST course of action?",
+  "options": [
+    "Detailed option A with reasoning",
+    "Detailed option B with reasoning",
+    "Detailed option C with reasoning",
+    "Detailed option D with reasoning"
+  ],
+  "correct": 0,
+  "explanation": "Comprehensive explanation covering why the correct answer is best, why other options are suboptimal, and what would happen with each choice. Include technical details and best practices.",
+  "learningPoints": [
+    "Key learning point 1",
+    "Key learning point 2",
+    "Key learning point 3",
+    "Key learning point 4"
+  ]
+}
+
+Generate ONE scenario. Return ONLY the JSON object, no additional text.`;
+
+  try {
+    const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.8,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 3072,
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Gemini API error: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    const generatedText = data.candidates[0]?.content?.parts[0]?.text;
+
+    if (!generatedText) {
+      throw new Error('No content generated from Gemini API');
+    }
+
+    // Extract JSON from response
+    let jsonText = generatedText.trim();
+    if (jsonText.startsWith('```json')) {
+      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    } else if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```\n?/g, '').trim();
+    }
+
+    const scenario = JSON.parse(jsonText);
+
+    // Format scenario question
+    return {
+      id: `ai-scenario-${domain}-${difficulty}-${Date.now()}`,
+      type: 'scenario',
+      difficulty: difficulty,
+      title: scenario.title,
+      context: scenario.context,
+      diagram: scenario.diagram || null,
+      codeSnippet: scenario.codeSnippet || null,
+      question: scenario.question,
+      options: scenario.options,
+      correct: scenario.correct,
+      explanation: scenario.explanation,
+      learningPoints: scenario.learningPoints || [],
+      aiGenerated: true,
+      generatedAt: new Date().toISOString()
+    };
+
+  } catch (error) {
+    console.error('Error generating scenario with Gemini:', error);
+    throw error;
+  }
+}
+
+/**
+ * Test API key validity
+ * @param {string} apiKey - Google AI Studio API key
+ * @returns {Promise<boolean>} Whether the API key is valid
+ */
+export async function testApiKey(apiKey) {
+  try {
+    const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: 'Hello'
+          }]
+        }]
+      })
+    });
+
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}

@@ -391,48 +391,6 @@ export default function CyberAssessmentTool() {
     }
   };
 
-  const generateAILearningPath = async (domainResults) => {
-    setLoadingAILearningPath(true);
-    setAiLearningPath(null);
-    
-    try {
-      const domain = domains.find(d => d.id === selectedDomain);
-      const domainName = t[domain.key];
-      
-      // Prepare feedback text
-      const feedbackText = `
-Domain: ${domainName}
-Score: ${domainResults.score}%
-Correct Answers: ${domainResults.correctAnswers}/${domainResults.totalQuestions}
-Skill Level: ${domainResults.level}
-Average Response Time: ${domainResults.avgTime}s
-Average Confidence: ${domainResults.avgConfidence}/5.0
-`;
-      
-      // Determine learning topics based on performance
-      const learningTopics = [];
-      if (domainResults.score < 60) {
-        learningTopics.push(`${domainName} Fundamentals`);
-        learningTopics.push(`Basic ${domainName} Best Practices`);
-      } else if (domainResults.score < 80) {
-        learningTopics.push(`Intermediate ${domainName}`);
-        learningTopics.push(`${domainName} Real-World Applications`);
-      } else {
-        learningTopics.push(`Advanced ${domainName}`);
-        learningTopics.push(`${domainName} Certifications`);
-      }
-      
-      const aiPath = await fetchFeedbackAndLearningPath(feedbackText, learningTopics);
-      if (aiPath) {
-        setAiLearningPath(aiPath);
-      }
-    } catch (error) {
-      console.warn('Failed to generate AI learning path', error);
-    } finally {
-      setLoadingAILearningPath(false);
-    }
-  };
-
   const finishAssessment = () => {
     const totalQuestions = answers.length;
     const correctAnswers = answers.filter(a => a.correct).length;
@@ -496,6 +454,48 @@ Average Confidence: ${domainResults.avgConfidence}/5.0
     // Generate AI learning path if enabled
     if (aiEnabled) {
       generateAILearningPath(domainResults);
+    }
+  };
+
+  const generateAILearningPath = async (domainResults) => {
+    setLoadingAILearningPath(true);
+    setAiLearningPath(null);
+    
+    try {
+      const domain = domains.find(d => d.id === selectedDomain);
+      const domainName = t[domain.key];
+      
+      // Prepare feedback text
+      const feedbackText = `
+Domain: ${domainName}
+Score: ${domainResults.score}%
+Correct Answers: ${domainResults.correctAnswers}/${domainResults.totalQuestions}
+Skill Level: ${domainResults.level}
+Average Response Time: ${domainResults.avgTime}s
+Average Confidence: ${domainResults.avgConfidence}/5.0
+`;
+      
+      // Determine learning topics based on performance
+      const learningTopics = [];
+      if (domainResults.score < 60) {
+        learningTopics.push(`${domainName} Fundamentals`);
+        learningTopics.push(`Basic ${domainName} Best Practices`);
+      } else if (domainResults.score < 80) {
+        learningTopics.push(`Intermediate ${domainName}`);
+        learningTopics.push(`${domainName} Real-World Applications`);
+      } else {
+        learningTopics.push(`Advanced ${domainName}`);
+        learningTopics.push(`${domainName} Certifications`);
+      }
+      
+      const aiPath = await fetchFeedbackAndLearningPath(feedbackText, learningTopics);
+      if (aiPath) {
+        setAiLearningPath(aiPath);
+      }
+    } catch (error) {
+      console.warn('Failed to generate AI learning path', error);
+    } finally {
+      setLoadingAILearningPath(false);
     }
   };
 

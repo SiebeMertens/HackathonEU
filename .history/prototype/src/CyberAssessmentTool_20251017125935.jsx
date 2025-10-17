@@ -255,13 +255,6 @@ export default function CyberAssessmentTool() {
   const [results, setResults] = useState({});
   const [earnedBadges, setEarnedBadges] = useState([]);
   const [totalAssessments, setTotalAssessments] = useState(0);
-  const [showApiConfig, setShowApiConfig] = useState(false);
-  const [loadingAI, setLoadingAI] = useState(false);
-  const [aiLearningPath, setAiLearningPath] = useState(null);
-  const [loadingAILearningPath, setLoadingAILearningPath] = useState(false);
-  
-  // AI Questions hook
-  const { apiKey, isEnabled: aiEnabled, saveApiKey, fetchAIQuestions, fetchFeedbackAndLearningPath, error: aiError } = useAIQuestions();
 
   useEffect(() => {
     if (screen === 'assessment' && questions.length > 0) {
@@ -282,7 +275,7 @@ export default function CyberAssessmentTool() {
     localStorage.setItem('cyberhubs-progress', JSON.stringify({ badges, total }));
   };
 
-  const startAssessment = async (domainId) => {
+  const startAssessment = (domainId) => {
     const domain = questionBank[domainId];
     
     // Mix regular questions with scenario questions
@@ -292,33 +285,11 @@ export default function CyberAssessmentTool() {
     // Add a scenario question for intermediate level
     const scenarioQuestion = getRandomScenario(domainId, 'intermediate');
     
-    let initialQuestions = [
+    const initialQuestions = [
       ...beginnerQuestions,
       ...intermediateQuestion,
       ...(scenarioQuestion ? [scenarioQuestion] : [])
     ];
-    
-    // Try to add AI-generated questions if enabled
-    if (aiEnabled) {
-      setLoadingAI(true);
-      try {
-        const aiQuestions = await fetchAIQuestions(domainId, 'intermediate', 1);
-        if (aiQuestions && aiQuestions.length > 0) {
-          // Insert AI question after the first beginner question
-          initialQuestions = [
-            beginnerQuestions[0],
-            ...aiQuestions,
-            beginnerQuestions[1],
-            ...intermediateQuestion,
-            ...(scenarioQuestion ? [scenarioQuestion] : [])
-          ];
-        }
-      } catch (error) {
-        console.warn('Failed to fetch AI questions, using local questions only', error);
-      } finally {
-        setLoadingAI(false);
-      }
-    }
     
     setSelectedDomain(domainId);
     setQuestions(initialQuestions);
@@ -391,48 +362,6 @@ export default function CyberAssessmentTool() {
     }
   };
 
-  const generateAILearningPath = async (domainResults) => {
-    setLoadingAILearningPath(true);
-    setAiLearningPath(null);
-    
-    try {
-      const domain = domains.find(d => d.id === selectedDomain);
-      const domainName = t[domain.key];
-      
-      // Prepare feedback text
-      const feedbackText = `
-Domain: ${domainName}
-Score: ${domainResults.score}%
-Correct Answers: ${domainResults.correctAnswers}/${domainResults.totalQuestions}
-Skill Level: ${domainResults.level}
-Average Response Time: ${domainResults.avgTime}s
-Average Confidence: ${domainResults.avgConfidence}/5.0
-`;
-      
-      // Determine learning topics based on performance
-      const learningTopics = [];
-      if (domainResults.score < 60) {
-        learningTopics.push(`${domainName} Fundamentals`);
-        learningTopics.push(`Basic ${domainName} Best Practices`);
-      } else if (domainResults.score < 80) {
-        learningTopics.push(`Intermediate ${domainName}`);
-        learningTopics.push(`${domainName} Real-World Applications`);
-      } else {
-        learningTopics.push(`Advanced ${domainName}`);
-        learningTopics.push(`${domainName} Certifications`);
-      }
-      
-      const aiPath = await fetchFeedbackAndLearningPath(feedbackText, learningTopics);
-      if (aiPath) {
-        setAiLearningPath(aiPath);
-      }
-    } catch (error) {
-      console.warn('Failed to generate AI learning path', error);
-    } finally {
-      setLoadingAILearningPath(false);
-    }
-  };
-
   const finishAssessment = () => {
     const totalQuestions = answers.length;
     const correctAnswers = answers.filter(a => a.correct).length;
@@ -492,11 +421,6 @@ Average Confidence: ${domainResults.avgConfidence}/5.0
     setEarnedBadges(newBadges);
     saveProgress(newBadges, newTotal);
     setScreen('results');
-    
-    // Generate AI learning path if enabled
-    if (aiEnabled) {
-      generateAILearningPath(domainResults);
-    }
   };
 
   const getLearningPath = () => {
@@ -572,32 +496,6 @@ Average Confidence: ${domainResults.avgConfidence}/5.0
                 {totalAssessments} {t.assessmentsCompleted}
               </span>
             </div>
-            
-            {/* AI Status & Config */}
-            <div className="flex items-center justify-center gap-4 mt-6">
-              {aiEnabled ? (
-                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/50 rounded-lg">
-                  <Sparkles className="w-4 h-4 text-cyan-400" />
-                  <span className="text-cyan-400 text-sm font-medium">AI Questions Enabled</span>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowApiConfig(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 transition"
-                >
-                  <Sparkles className="w-4 h-4 text-slate-400" />
-                  <span className="text-slate-300 text-sm">Enable AI Questions</span>
-                </button>
-              )}
-              {aiEnabled && (
-                <button
-                  onClick={() => setShowApiConfig(true)}
-                  className="text-slate-400 hover:text-slate-300 text-sm underline"
-                >
-                  Configure
-                </button>
-              )}
-            </div>
           </div>
 
           {/* Domain Cards */}
@@ -666,18 +564,6 @@ Average Confidence: ${domainResults.avgConfidence}/5.0
             </div>
           </div>
         </div>
-        
-        {/* API Key Configuration Modal */}
-        {showApiConfig && (
-          <ApiKeyConfig
-            currentKey={apiKey}
-            onSave={(key) => {
-              saveApiKey(key);
-              setShowApiConfig(false);
-            }}
-            onClose={() => setShowApiConfig(false)}
-          />
-        )}
       </div>
     );
   }
@@ -687,7 +573,6 @@ Average Confidence: ${domainResults.avgConfidence}/5.0
     const question = questions[currentQuestion];
     const progress = ((currentQuestion + 1) / questions.length) * 100;
     const isScenario = question.type === 'scenario';
-    const isAIGenerated = question.aiGenerated === true;
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
@@ -695,15 +580,7 @@ Average Confidence: ${domainResults.avgConfidence}/5.0
           {/* Progress */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-3">
-                <span className="text-slate-300 text-sm">{t.questionOf} {currentQuestion + 1} {t.of} {questions.length}</span>
-                {isAIGenerated && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/50 rounded text-xs text-cyan-400">
-                    <Sparkles className="w-3 h-3" />
-                    AI Generated
-                  </span>
-                )}
-              </div>
+              <span className="text-slate-300 text-sm">{t.questionOf} {currentQuestion + 1} {t.of} {questions.length}</span>
               <span className="text-cyan-400 text-sm font-medium">{userLevel.toUpperCase()}</span>
             </div>
             <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
@@ -782,53 +659,8 @@ Average Confidence: ${domainResults.avgConfidence}/5.0
 
                 {/* Feedback */}
                 {showFeedback && (
-                  <div className="mt-6 space-y-4">
-                    <div className="p-4 bg-slate-700 rounded-lg">
-                      <p className="text-slate-200 whitespace-pre-line">{question.explanation}</p>
-                    </div>
-                    
-                    {/* Learning Points */}
-                    {question.learningPoints && question.learningPoints.length > 0 && (
-                      <div className="p-4 bg-slate-700 rounded-lg">
-                        <h4 className="text-white font-bold mb-2 flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-cyan-400" />
-                          Key Learning Points
-                        </h4>
-                        <ul className="space-y-1 text-slate-300 text-sm">
-                          {question.learningPoints.map((point, idx) => (
-                            <li key={idx} className="flex gap-2">
-                              <span className="text-cyan-400">•</span>
-                              <span>{point}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    
-                    {/* Sources */}
-                    {question.sources && question.sources.length > 0 && (
-                      <div className="p-4 bg-slate-700 rounded-lg">
-                        <h4 className="text-white font-bold mb-2 flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-purple-400" />
-                          Sources & References
-                        </h4>
-                        <ul className="space-y-1.5 text-sm">
-                          {question.sources.map((source, idx) => (
-                            <li key={idx}>
-                              <a 
-                                href={source}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-cyan-400 hover:text-cyan-300 underline flex items-center gap-1"
-                              >
-                                <span className="break-all">{source}</span>
-                                <ChevronRight className="w-3 h-3 flex-shrink-0" />
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                  <div className="mt-6 p-4 bg-slate-700 rounded-lg">
+                    <p className="text-slate-200">{question.explanation}</p>
                   </div>
                 )}
               </>
@@ -976,87 +808,25 @@ Average Confidence: ${domainResults.avgConfidence}/5.0
             </div>
           </div>
 
-          {/* AI-Generated Learning Path */}
-          {aiEnabled && aiLearningPath && (
-            <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 mb-6">
-              <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-                <Sparkles className="w-6 h-6 text-cyan-400" />
-                AI-Personalized Learning Path
-              </h2>
-              
-              {/* AI Feedback Summary */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30 rounded-lg">
-                <p className="text-slate-200">{aiLearningPath.feedbackSummary}</p>
-              </div>
-              
-              {/* AI Learning Resources */}
-              <div className="space-y-6">
-                {aiLearningPath.learningPath.map((topicPath, topicIdx) => (
-                  <div key={topicIdx} className="bg-slate-700 rounded-lg p-6">
-                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                      <Target className="w-5 h-5 text-cyan-400" />
-                      {topicPath.topic}
-                    </h3>
-                    <div className="space-y-3">
-                      {topicPath.resources.map((resource, resIdx) => (
-                        <a
-                          key={resIdx}
-                          href={resource.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-start gap-3 p-3 bg-slate-800 rounded-lg hover:bg-slate-750 transition group"
-                        >
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 font-bold text-sm group-hover:bg-cyan-500/30">
-                            {resIdx + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-white font-medium group-hover:text-cyan-400 transition">{resource.title}</div>
-                            {resource.type && (
-                              <div className="text-xs text-slate-400 mt-1 capitalize">{resource.type}</div>
-                            )}
-                            <div className="text-xs text-slate-500 mt-1 truncate">{resource.url}</div>
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-cyan-400 flex-shrink-0 transition" />
-                        </a>
-                      ))}
-                    </div>
+          {/* Learning Path */}
+          <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 mb-6">
+            <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+              <BookOpen className="w-6 h-6 text-cyan-400" />
+              {t.yourLearningPath}
+            </h2>
+            <p className="text-slate-400 mb-6">{t[learningPath.titleKey]}</p>
+            
+            <div className="space-y-3">
+              {learningPath.recommendations.map((rec, idx) => (
+                <div key={idx} className="flex gap-3 p-4 bg-slate-700 rounded-lg">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500 text-white flex items-center justify-center text-sm font-bold">
+                    {idx + 1}
                   </div>
-                ))}
-              </div>
+                  <p className="text-slate-200">{rec}</p>
+                </div>
+              ))}
             </div>
-          )}
-          
-          {/* Loading AI Learning Path */}
-          {aiEnabled && loadingAILearningPath && (
-            <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 mb-6">
-              <div className="flex items-center justify-center gap-3 text-cyan-400">
-                <Sparkles className="w-6 h-6 animate-pulse" />
-                <span>Generating personalized learning path...</span>
-              </div>
-            </div>
-          )}
-
-          {/* Standard Learning Path (Fallback) */}
-          {(!aiEnabled || (!aiLearningPath && !loadingAILearningPath)) && (
-            <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 mb-6">
-              <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-                <BookOpen className="w-6 h-6 text-cyan-400" />
-                {t.yourLearningPath}
-              </h2>
-              <p className="text-slate-400 mb-6">{t[learningPath.titleKey]}</p>
-              
-              <div className="space-y-3">
-                {learningPath.recommendations.map((rec, idx) => (
-                  <div key={idx} className="flex gap-3 p-4 bg-slate-700 rounded-lg">
-                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500 text-white flex items-center justify-center text-sm font-bold">
-                      {idx + 1}
-                    </div>
-                    <p className="text-slate-200">{rec}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
 
           {/* Actions */}
           <div className="flex gap-4">

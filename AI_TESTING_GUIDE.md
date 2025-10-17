@@ -1,0 +1,447 @@
+# 🧪 AI Questions Feature - Testing & Debugging Guide
+
+## ✅ Current Status
+
+**Dev Server**: Running on http://localhost:5174/
+**Build Status**: No compilation errors
+**Fix Applied**: isEnabled logic corrected
+
+---
+
+## 🔍 What Was Fixed
+
+### Issue Identified
+
+The `useAIQuestions` hook was checking for an environment variable that might not be set:
+
+```javascript
+// ❌ OLD (could fail)
+const isEnabled = import.meta.env.VITE_ENABLE_AI_QUESTIONS === "true" && apiKey;
+
+// ✅ NEW (works correctly)
+const isEnabled = Boolean(apiKey && apiKey.trim().length > 0);
+```
+
+### Why This Fixes It
+
+- Now AI is enabled simply by having a valid API key
+- No need to set `VITE_ENABLE_AI_QUESTIONS` environment variable
+- More intuitive: Have key = Feature enabled
+
+---
+
+## 🧪 How to Test
+
+### Test 1: App Loads Without API Key
+
+**Expected**: App should load normally, show "Enable AI Questions" button
+
+1. Open http://localhost:5174/
+2. Check that home screen loads
+3. Look for "Enable AI Questions" button
+4. Verify no errors in console
+
+**✅ PASS Criteria**: Home screen visible, no console errors
+
+---
+
+### Test 2: Configure API Key
+
+**Expected**: Modal opens, key can be tested and saved
+
+1. Click "Enable AI Questions" button
+2. Modal should open
+3. Paste API key: `AIzaSy...` (get from https://makersuite.google.com/app/apikey)
+4. Click "Test API Key"
+5. Should show success message
+6. Click "Save & Enable"
+7. Modal closes, "AI Questions Enabled ✨" badge appears
+
+**✅ PASS Criteria**: Key saves, badge shows, no errors
+
+---
+
+### Test 3: Start Assessment Without AI
+
+**Expected**: Works normally with local questions only
+
+1. Don't configure API key (or clear it)
+2. Click any domain to start assessment
+3. Questions should load
+4. No "✨ AI Generated" badges
+5. Assessment completes normally
+
+**✅ PASS Criteria**: Assessment works, uses local questions
+
+---
+
+### Test 4: Start Assessment With AI
+
+**Expected**: Mixes AI and local questions
+
+1. Configure valid API key (see Test 2)
+2. Click any domain to start assessment
+3. Wait 2-5 seconds for AI questions to generate
+4. Look for "✨ AI Generated" badge on some questions
+5. AI questions should have detailed explanations
+6. Assessment completes normally
+
+**✅ PASS Criteria**: AI questions appear with badges, quality is good
+
+---
+
+### Test 5: API Failure Handling
+
+**Expected**: Falls back gracefully to local questions
+
+1. Configure invalid API key (e.g., "invalid123")
+2. Start assessment
+3. Should load (might take a moment)
+4. Uses only local questions
+5. No error shown to user
+6. Check console: Should see warning (dev only)
+
+**✅ PASS Criteria**: Assessment still works, no user-facing errors
+
+---
+
+## 🐛 Troubleshooting
+
+### Problem: "Nothing loads" or blank screen
+
+**Check 1: Browser Console**
+
+```javascript
+// Open DevTools (F12), look for errors in Console tab
+// Common issues:
+- Import errors (missing files)
+- Syntax errors
+- Network errors
+```
+
+**Solution**:
+
+- Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)
+- Clear cache and reload
+- Check all files were created correctly
+
+---
+
+### Problem: "Enable AI Questions" button doesn't work
+
+**Check 1: Modal Component**
+
+```bash
+# Verify file exists
+ls src/components/ApiKeyConfig.jsx
+```
+
+**Check 2: Import in main file**
+
+```javascript
+// In CyberAssessmentTool.jsx, line ~4
+import ApiKeyConfig from "./components/ApiKeyConfig";
+```
+
+**Solution**: Ensure component is imported and rendered
+
+---
+
+### Problem: API Key test fails
+
+**Check 1: API Key Format**
+
+```
+✅ Valid: AIzaSyABC123def456GHI789jkl...
+❌ Invalid: abc123, empty string, spaces
+```
+
+**Check 2: Internet Connection**
+
+```bash
+# Test if you can reach Google
+ping generativelanguage.googleapis.com
+```
+
+**Check 3: API Key Status**
+
+- Visit: https://makersuite.google.com/app/apikey
+- Verify key is "Active"
+- Check if rate limits hit
+
+**Solution**: Generate new API key if needed
+
+---
+
+### Problem: AI questions don't appear
+
+**Check 1: API Key is Saved**
+
+```javascript
+// In browser console
+localStorage.getItem("gemini_api_key");
+// Should return your API key
+```
+
+**Check 2: Network Tab**
+
+```
+// Open DevTools > Network tab
+// Start assessment
+// Look for request to: generativelanguage.googleapis.com
+// Check if request succeeds (status 200)
+```
+
+**Check 3: Console Warnings**
+
+```javascript
+// Look for messages like:
+"Failed to fetch AI questions, using local questions only";
+```
+
+**Solutions**:
+
+- Re-save API key
+- Check internet connection
+- Verify API quota not exceeded
+- Wait a moment and try again
+
+---
+
+### Problem: Questions load slowly
+
+**This is normal!** First AI request takes 2-5 seconds.
+
+**Why**:
+
+- Gemini API generates questions from scratch
+- Network latency
+- AI processing time
+
+**Not a bug if**:
+
+- Questions eventually load
+- Subsequent assessments faster
+- No errors in console
+
+---
+
+## 🔍 Debugging Tools
+
+### Browser Console Commands
+
+```javascript
+// Check if hook loaded
+window.useAIQuestions;
+
+// Check localStorage
+localStorage.getItem("gemini_api_key");
+
+// Clear API key (for testing)
+localStorage.removeItem("gemini_api_key");
+
+// Check environment variables
+import.meta.env.VITE_GEMINI_API_KEY;
+
+// Force reload without cache
+location.reload(true);
+```
+
+### Vite Dev Server
+
+```bash
+# Check server is running
+curl http://localhost:5174
+
+# Restart server
+# In terminal: Ctrl+C, then npm run dev
+
+# Check for TypeScript errors
+npm run build
+
+# Clear Vite cache
+rm -rf node_modules/.vite
+npm run dev
+```
+
+---
+
+## ✅ Verification Checklist
+
+Use this to confirm everything works:
+
+### Files Exist
+
+- [ ] `src/services/geminiApi.js` - API service
+- [ ] `src/hooks/useAIQuestions.js` - React hook
+- [ ] `src/components/ApiKeyConfig.jsx` - Configuration UI
+- [ ] `.env.example` - Template file
+
+### Imports Work
+
+- [ ] No import errors in console
+- [ ] All components render
+- [ ] Icons display (Sparkles, etc.)
+
+### UI Elements Present
+
+- [ ] "Enable AI Questions" button on home
+- [ ] "AI Questions Enabled ✨" badge when configured
+- [ ] Modal opens on click
+- [ ] "✨ AI Generated" badge on questions
+
+### Functionality Works
+
+- [ ] Can configure API key
+- [ ] Test button works
+- [ ] Key persists after refresh
+- [ ] AI questions generate
+- [ ] Fallback works without key
+- [ ] Assessment completes
+
+---
+
+## 🎯 Quick Fix Commands
+
+### If Nothing Works
+
+```bash
+# 1. Kill all node processes
+pkill -9 node
+
+# 2. Clear everything
+rm -rf node_modules package-lock.json
+npm install
+
+# 3. Restart dev server
+npm run dev
+
+# 4. Hard refresh browser
+# Press: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)
+```
+
+### If API Key Won't Save
+
+```javascript
+// In browser console:
+// Clear and re-save
+localStorage.clear();
+// Then use UI to save API key again
+```
+
+### If Import Errors
+
+```bash
+# Make sure all files exist
+ls src/services/geminiApi.js
+ls src/hooks/useAIQuestions.js
+ls src/components/ApiKeyConfig.jsx
+
+# If missing, files need to be recreated
+```
+
+---
+
+## 📊 Expected Behavior Summary
+
+| Scenario            | Expected Result                     |
+| ------------------- | ----------------------------------- |
+| **No API Key**      | App works, local questions only     |
+| **Valid API Key**   | AI questions appear with badges     |
+| **Invalid API Key** | Falls back to local questions       |
+| **API Offline**     | Falls back to local questions       |
+| **Slow Internet**   | Might take 5-10 seconds, then works |
+| **Rate Limit Hit**  | Falls back to local questions       |
+
+---
+
+## 🆘 Still Having Issues?
+
+### Check These Common Mistakes
+
+1. **Wrong Port**: Server on 5174, but trying to access 5173
+
+   - **Fix**: Check terminal for actual port
+
+2. **Browser Cache**: Old version cached
+
+   - **Fix**: Hard refresh (Ctrl+Shift+R)
+
+3. **Missing Files**: Components not created
+
+   - **Fix**: Verify all files exist (see checklist above)
+
+4. **Import Paths**: Wrong relative paths
+
+   - **Fix**: Check all import statements use correct `./` or `../`
+
+5. **API Key**: Has spaces or invalid characters
+   - **Fix**: Copy key carefully, trim whitespace
+
+---
+
+## 📞 Debug Information to Collect
+
+If you need help, provide:
+
+1. **Browser Console Errors**
+
+   ```
+   Copy full error message from console
+   ```
+
+2. **Network Tab**
+
+   ```
+   Screenshot of failed requests
+   ```
+
+3. **Terminal Output**
+
+   ```
+   Copy Vite error messages
+   ```
+
+4. **File Structure**
+
+   ```bash
+   ls -la src/services/
+   ls -la src/hooks/
+   ls -la src/components/
+   ```
+
+5. **Current Port**
+   ```
+   What URL are you accessing?
+   ```
+
+---
+
+## ✅ Current Fix Status
+
+**Applied**: ✅ isEnabled logic fixed
+**Test**: ✅ Server running
+**Status**: Ready to test
+
+**Next Steps**:
+
+1. Open http://localhost:5174/
+2. Follow Test 1-5 above
+3. Report any issues found
+
+---
+
+## 🎉 Success Indicators
+
+You'll know it's working when:
+
+- ✅ Home screen loads instantly
+- ✅ "Enable AI Questions" button visible
+- ✅ Modal opens smoothly
+- ✅ API key can be tested and saved
+- ✅ "AI Questions Enabled ✨" badge appears
+- ✅ Assessment starts normally
+- ✅ Some questions have "✨ AI Generated" badge
+- ✅ Everything works smoothly
+
+**If all tests pass, the feature is working correctly!** 🚀

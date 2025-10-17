@@ -3,10 +3,9 @@ dist/
 .DS_Store
 *.log
 *.swp
-.env*
+.env
 .env.local
 .env.*.local
 .vscode/
 .idea/
 *.iml
-.env

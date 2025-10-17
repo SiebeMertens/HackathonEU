@@ -124,40 +124,12 @@ const ScenarioQuestion = ({ scenario, selectedAnswer, onAnswerSelect, showExplan
           {/* Learning Points */}
           {scenario.learningPoints && scenario.learningPoints.length > 0 && (
             <div className="bg-slate-800/50 rounded-lg p-4 mt-4">
-              <h5 className="text-cyan-400 font-bold mb-2 text-sm flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                Key Learning Points:
-              </h5>
+              <h5 className="text-cyan-400 font-bold mb-2 text-sm">Key Learning Points:</h5>
               <ul className="space-y-2">
                 {scenario.learningPoints.map((point, idx) => (
                   <li key={idx} className="text-slate-300 text-sm flex items-start gap-2">
                     <span className="text-cyan-400 flex-shrink-0">•</span>
                     <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {/* Sources */}
-          {scenario.sources && scenario.sources.length > 0 && (
-            <div className="bg-slate-800/50 rounded-lg p-4 mt-4">
-              <h5 className="text-purple-400 font-bold mb-2 text-sm flex items-center gap-2">
-                <Globe className="w-4 h-4" />
-                Sources & References:
-              </h5>
-              <ul className="space-y-1.5">
-                {scenario.sources.map((source, idx) => (
-                  <li key={idx}>
-                    <a 
-                      href={source}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-cyan-400 hover:text-cyan-300 underline text-sm flex items-center gap-1 group"
-                    >
-                      <span className="break-all">{source}</span>
-                      <ChevronRight className="w-3 h-3 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                    </a>
                   </li>
                 ))}
               </ul>
