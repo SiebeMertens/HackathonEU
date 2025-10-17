@@ -30,7 +30,7 @@ This prototype addresses a critical bottleneck in cyber resilience: the lack of 
 
 1. **Clone or navigate to the prototype folder:**
    ```bash
-   cd "C:\Users\Siebe\OneDrive - AP Hogeschool Antwerpen\APHOGESCHOOL\4de Jaar\IT Professional\HackathonEU\prototype"
+   cd "XXX"
    ```
 
 2. **Install dependencies:**
