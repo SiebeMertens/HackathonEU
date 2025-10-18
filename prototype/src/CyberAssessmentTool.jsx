@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Target, Code, Award, TrendingUp, BookOpen, ChevronRight, CheckCircle, XCircle, Globe } from 'lucide-react';
 import { useTranslation, languages } from './i18n';
 
@@ -251,6 +251,125 @@ export default function CyberAssessmentTool() {
   const [results, setResults] = useState({});
   const [earnedBadges, setEarnedBadges] = useState([]);
   const [totalAssessments, setTotalAssessments] = useState(0);
+  const confettiCanvasRef = useRef(null);
+
+  // Launch confetti on results; intensity scales with score (0-100)
+  const launchConfetti = (canvas, score = 0, isAdvanced = false) => {
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = (canvas.width = window.innerWidth);
+    const h = (canvas.height = window.innerHeight);
+
+    // Map score to particle count
+    const normalized = Math.max(0, Math.min(100, Number(score || 0)));
+    let count = 40 + Math.round((normalized / 100) * 160); // 40..200
+
+    // If very low score, show a small subtle confetti
+    if (normalized < 30) count = 30;
+
+    const colors = ['#06b6d4', '#22c55e', '#8b5cf6', '#f97316', '#f43f5e', '#fde68a'];
+    const particles = [];
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * -h * 0.5,
+        vx: (Math.random() - 0.5) * 8,
+        vy: Math.random() * 4 + 2,
+        size: Math.random() * 8 + 6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rot: Math.random() * 360,
+        rotSpeed: (Math.random() - 0.5) * 10,
+        opacity: 1
+      });
+    }
+
+    let start = null;
+    const duration = 3000;
+
+    // Optionally prepare long curly glitter lines for Advanced users
+    const glitterLines = [];
+    if (isAdvanced) {
+      const lineCount = 6; // number of ribbons per side total
+      for (let i = 0; i < lineCount; i++) {
+        const fromLeft = i % 2 === 0;
+        glitterLines.push({
+          fromLeft,
+          startY: Math.random() * h * 0.6 + h * 0.2,
+          length: w * (0.6 + Math.random() * 0.3),
+          amp: 20 + Math.random() * 40,
+          freq: 0.008 + Math.random() * 0.012,
+          hue: 200 + Math.random() * 140,
+          thickness: 2 + Math.random() * 3,
+          progress: 0
+        });
+      }
+    }
+
+    function render(timestamp) {
+      if (!start) start = timestamp;
+      const elapsed = timestamp - start;
+      const t = Math.min(1, elapsed / duration);
+      ctx.clearRect(0, 0, w, h);
+
+      // draw confetti particles
+      particles.forEach((p) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.06; // gravity
+        p.rot += p.rotSpeed;
+        p.opacity = Math.max(0, 1 - elapsed / duration);
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rot * Math.PI) / 180);
+        ctx.globalAlpha = p.opacity;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        ctx.restore();
+      });
+
+      // draw glitter ribbons if advanced
+      if (isAdvanced) {
+        glitterLines.forEach((line, idx) => {
+          const progress = Math.min(1, t * (0.6 + (idx % 3) * 0.2));
+          const baseX = line.fromLeft ? -line.length * (1 - progress) : w + line.length * (1 - progress);
+          ctx.beginPath();
+          const step = Math.max(10, Math.floor(line.length / 30));
+          for (let x = 0; x <= line.length; x += step) {
+            const px = baseX + (line.fromLeft ? x : -x);
+            const sin = Math.sin((x + elapsed * 0.6) * line.freq) * line.amp * (1 - progress * 0.6);
+            const py = line.startY + sin + (1 - progress) * 40 * (line.fromLeft ? -0.5 : 0.5);
+            if (x === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.strokeStyle = `hsla(${line.hue}, 85%, 60%, ${0.9 - progress * 0.8})`;
+          ctx.lineWidth = line.thickness * (1 + Math.sin(elapsed * 0.01 + idx));
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          ctx.stroke();
+        });
+      }
+
+      if (elapsed < duration + 400) {
+        requestAnimationFrame(render);
+      } else {
+        ctx.clearRect(0, 0, w, h);
+      }
+    }
+
+    requestAnimationFrame(render);
+  };
+
+  // Trigger confetti when results screen shows and results.score exists
+  useEffect(() => {
+    if (screen === 'results' && results && typeof results.score !== 'undefined') {
+      const canvas = confettiCanvasRef.current;
+  // small timeout so layout stabilizes before sizing
+  const isAdvanced = (results.level && String(results.level).toLowerCase() === 'advanced') || userLevel === 'advanced';
+  setTimeout(() => launchConfetti(canvas, results.score, isAdvanced), 120);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, results.score]);
 
   useEffect(() => {
     if (screen === 'assessment' && questions.length > 0) {
@@ -655,7 +774,10 @@ export default function CyberAssessmentTool() {
     const Icon = domainInfo.icon;
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 relative">
+        {/* Confetti canvas overlays the screen when active */}
+        <canvas ref={confettiCanvasRef} className="pointer-events-none fixed inset-0 w-full h-full" />
+
         <div className="max-w-4xl mx-auto py-8">
           {/* Score Card */}
           <div className="bg-slate-800 rounded-xl p-8 border border-slate-700 mb-6">
